@@ -1,0 +1,31 @@
+# config.yaml - Color Emulator Configuration
+
+# Optimization settings
+max_time_minutes: 60        # Total max runtime
+tolerance: 0.01             # Convergence tolerance
+population_size: 15         # Differential evolution population multiplier
+
+# Loss function settings
+target_delta_e: 3.0         # "Good enough" threshold (Delta E < 3 is generally imperceptible)
+luminance_weight: true      # Weight midtones more heavily
+
+# Rendering settings
+render_size: 1024           # Max dimension for optimization renders
+final_render_size: 2048     # Max dimension for test renders
+use_camera_wb: true         # Lock to camera white balance (match in-camera JPEG)
+
+# Curve settings
+curve_points: 5             # Number of control points for main tone curve (min 3, max 10)
+rgb_curve_points: 3         # Number of control points for R/G/B channel curves (min 2, max 5)
+
+# Output settings
+preset_name: "ColorEmulator"
+
+# Advanced: stage-specific settings
+stages:
+  tone_curve:
+    time_ratio: 0.4
+  hsl:
+    time_ratio: 0.35
+  calibration:
+    time_ratio: 0.25
