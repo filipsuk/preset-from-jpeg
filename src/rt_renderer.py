@@ -48,6 +48,11 @@ def create_pp3_profile(params: Dict[str, Any], dcp_path: Optional[str] = None) -
     # We'll map our brightness to RT's exposure compensation
     exposure = params.get("Exposure", 0.0)
 
+    # Vignetting correction
+    vignette_amount = params.get("VignetteAmount", 0)
+    vignette_radius = params.get("VignetteRadius", 50)
+    vignette_strength = params.get("VignetteStrength", 1)
+
     # Extract HSL adjustments
     hue_red = params.get("HueAdjustmentRed", 0)
     hue_orange = params.get("HueAdjustmentOrange", 0)
@@ -116,6 +121,13 @@ Enabled=true
 HCurve=1;0;{hue_red/360};0.166;{hue_orange/360};0.333;{hue_yellow/360};0.5;{hue_green/360};0.666;{hue_aqua/360};0.833;{hue_blue/360};1;{hue_purple/360};
 SCurve=1;0;{sat_red/100 + 0.5};0.166;{sat_orange/100 + 0.5};0.333;{sat_yellow/100 + 0.5};0.5;{sat_green/100 + 0.5};0.666;{sat_aqua/100 + 0.5};0.833;{sat_blue/100 + 0.5};1;{sat_purple/100 + 0.5};
 VCurve=1;0;{lum_red/100 + 0.5};0.166;{lum_orange/100 + 0.5};0.333;{lum_yellow/100 + 0.5};0.5;{lum_green/100 + 0.5};0.666;{lum_aqua/100 + 0.5};0.833;{lum_blue/100 + 0.5};1;{lum_purple/100 + 0.5};
+
+[Vignetting Correction]
+Amount={vignette_amount}
+Radius={vignette_radius}
+Strength={vignette_strength}
+CenterX=0
+CenterY=0
 
 [RAW]
 CA=true

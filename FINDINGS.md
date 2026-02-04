@@ -203,9 +203,82 @@ None significantly improved the outlier.
 | rawpy optimized | ~15 | - | - |
 | RawTherapee default | ~16 | - | - |
 | RT + DCP (HueSatMap only) | 7.34 | 4.34 | 13.44 |
-| **RT + Full DCP + curve** | **5.92** | **3.09** | **14.30** |
+| RT + Full DCP + curve (v1) | 5.92 | 3.09 | 14.30 |
+| v2: + HSL Red Hue/Lum | 5.28 | 3.09 | 14.26 |
+| v3: + Yellow Sat -15 | 5.13 | 3.09 | 14.26 |
+| **v4: + Vignetting (65/50)** | **4.75** | **2.45** | **13.96** |
 
-**Best configuration achieves ΔE < 5 for 4 out of 5 images.**
+**Best configuration (v4) achieves ΔE < 5 for all 7 non-outlier images (8 total).**
+
+---
+
+## v4 Configuration (Current Best)
+
+```ini
+[Exposure]
+Compensation=0.10
+CurveMode=Standard
+Curve=1;0;0.0;0.25;0.22;0.5;0.51;0.75;0.73;1;0.97;
+
+[HSV Equalizer]
+Enabled=true
+HCurve=... (Red Hue -10)
+SCurve=... (Yellow Sat -15)
+VCurve=... (Red Lum +10)
+
+[Vignetting Correction]
+Amount=65
+Radius=50
+Strength=1
+
+[Color Management]
+InputProfile=Adobe Standard DCP
+ToneCurve=true
+ApplyLookTable=true
+ApplyBaselineExposureOffset=true
+ApplyHueSatMap=true
+```
+
+### v4 Results (8 images)
+| Image | Delta E | Status |
+|-------|---------|--------|
+| R0031372 | 3.11 | ✓ Excellent |
+| R0031420 | 3.98 | ✓ Excellent |
+| R0031430 | 3.47 | ✓ Excellent |
+| R0041010 | 3.40 | ✓ Excellent |
+| R0041011 | 3.20 | ✓ Excellent |
+| R0041176 | 4.41 | ✓ Excellent |
+| R0041177 | 2.45 | ✓ Excellent |
+| R0041179 | 13.96 | ✗ Outlier |
+| **Average** | **4.75** | |
+
+---
+
+## Optimization Journey
+
+### v2: HSL Red Adjustments
+- **HueAdjustmentRed: -10** - Shifts reds toward orange, improves LAB 'a' channel matching
+- **LuminanceAdjustmentRed: +10** - Subtle brightness boost for red tones
+- Result: Average 5.28 (from 5.55)
+
+### v3: Yellow Saturation
+- **SaturationAdjustmentYellow: -15** - Key finding! Reduces yellow saturation to match camera
+- Combined with Delta E + histogram analysis to identify
+- Result: R0031372 improved from 4.67 to 3.75
+
+### v4: Vignetting Correction
+Analysis showed emulated images had 20-27% darker corners relative to center vs reference.
+
+**DNG metadata discovery:**
+- DNG contains `OpcodeList1: FixVignetteRadial` - embedded vignetting correction data
+- Camera JPEG applies this correction, but RawTherapee doesn't use DNG opcodes by default
+- Empirically optimized: Amount=65, Radius=50, Strength=1
+
+| Image | Without Vignette | With Vignette | Change |
+|-------|------------------|---------------|--------|
+| R0031372 | 3.75 | 3.11 | -0.64 |
+| R0041177 | 3.09 | 2.45 | -0.64 |
+| Average | 5.13 | 4.75 | -0.38 |
 
 ---
 
@@ -213,9 +286,11 @@ None significantly improved the outlier.
 
 1. ~~Optimize tone curve~~ ✓ Done
 2. ~~Investigate R0041179~~ ✓ Done - confirmed as scene-specific outlier
-3. **Generate Lightroom XMP preset** from optimized parameters
-4. **Test with more images** to validate generalization
-5. **Consider per-image adjustment** for outliers
+3. ~~HSL adjustments~~ ✓ Done - Red Hue/Lum, Yellow Sat
+4. ~~Vignetting correction~~ ✓ Done - Amount=65, Radius=50
+5. **Parse DNG FixVignetteRadial** opcode for exact vignetting polynomial
+6. **Camera calibration** - RawTherapee Channel Mixer needs proper implementation
+7. **Test with more images** to validate generalization
 
 ---
 
