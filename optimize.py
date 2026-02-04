@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-color_emulator.py - CLI entry point for RAW-to-JPEG color science emulator.
+optimize.py - Optimize RawTherapee parameters to match camera JPEG output.
 
-Reverse-engineers camera JPEG color science into Lightroom-compatible presets
-using RawTherapee as the rendering engine.
+Uses RawTherapee CLI with DCP profiles for Lightroom-compatible results.
 """
 
 import argparse
@@ -17,7 +16,6 @@ from PIL import Image
 from skimage.color import rgb2lab, deltaE_ciede2000
 
 from src.rt_renderer import RawTherapeeRenderer, get_default_rt_params
-from src.xmp_generator import XMPGenerator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,7 +58,7 @@ def load_image_pairs(input_dir: Path, max_images: int = None, resize: tuple = (2
 
 
 def evaluate(renderer, pairs, exposure, curve_y):
-    """Evaluate parameters on image pairs, return average Delta E."""
+    """Evaluate parameters on all image pairs, return average Delta E."""
     params = get_default_rt_params(curve_points=5)
     params["Exposure"] = exposure
     params["ToneCurvePV2012"] = [[i / 4.0, curve_y[i]] for i in range(5)]
@@ -69,6 +67,7 @@ def evaluate(renderer, pairs, exposure, curve_y):
     for pair in pairs:
         rgb = renderer.render(pair["dng"], params, target_size=(256, 256))
 
+        # Resize to match reference if needed
         if rgb.shape != pair["ref"].shape:
             rgb_pil = Image.fromarray((rgb * 255).astype(np.uint8))
             rgb_pil = rgb_pil.resize(
@@ -84,40 +83,54 @@ def evaluate(renderer, pairs, exposure, curve_y):
     return total_de / len(pairs)
 
 
-def optimize(renderer, pairs):
-    """Optimize exposure and tone curve using grid search."""
-    logger.info("="*60)
-    logger.info("Starting optimization")
-    logger.info("="*60)
+def optimize(renderer, pairs, verbose=True):
+    """
+    Optimize exposure and tone curve parameters.
 
-    # Phase 1: Find best exposure
+    Uses grid search for efficiency (RawTherapee CLI is slow).
+    """
+    if verbose:
+        logger.info("="*60)
+        logger.info("Starting optimization")
+        logger.info("="*60)
+
+    # Phase 1: Find best exposure with linear curve
     linear_curve = [0.0, 0.25, 0.5, 0.75, 1.0]
     best_exp, best_de = 0.0, float("inf")
 
-    logger.info("\n[Phase 1] Exposure search:")
+    if verbose:
+        logger.info("\n[Phase 1] Exposure grid search:")
+
     for exp in np.arange(-0.2, 0.4, 0.1):
         de = evaluate(renderer, pairs, exp, linear_curve)
-        logger.info(f"  Exp={exp:+.1f}: ΔE={de:.2f}")
+        if verbose:
+            logger.info(f"  Exp={exp:+.1f}: ΔE={de:.2f}")
         if de < best_de:
             best_de, best_exp = de, exp
 
     # Phase 2: Test curve shapes
-    logger.info(f"\n[Phase 2] Curve shape search:")
+    if verbose:
+        logger.info(f"\n[Phase 2] Curve shape search (Exp={best_exp:+.1f}):")
+
     curves = {
         "linear": [0.0, 0.25, 0.5, 0.75, 1.0],
         "slight_s": [0.02, 0.23, 0.5, 0.77, 0.98],
         "contrast+": [0.0, 0.20, 0.5, 0.80, 1.0],
+        "lifted": [0.05, 0.27, 0.5, 0.75, 1.0],
     }
 
-    best_curve = linear_curve
+    best_curve_name, best_curve = "linear", linear_curve
     for name, curve in curves.items():
         de = evaluate(renderer, pairs, best_exp, curve)
-        logger.info(f"  {name}: ΔE={de:.2f}")
+        if verbose:
+            logger.info(f"  {name}: ΔE={de:.2f}")
         if de < best_de:
-            best_de, best_curve = de, curve
+            best_de, best_curve_name, best_curve = de, name, curve
 
-    # Phase 3: Fine-tune curve
-    logger.info(f"\n[Phase 3] Fine-tuning curve:")
+    # Phase 3: Fine-tune curve points
+    if verbose:
+        logger.info(f"\n[Phase 3] Fine-tuning curve ({best_curve_name}):")
+
     best_curve = list(best_curve)
     for i in range(5):
         for delta in [-0.02, -0.01, 0.01, 0.02]:
@@ -127,80 +140,99 @@ def optimize(renderer, pairs):
             if de < best_de:
                 best_de = de
                 best_curve = test_curve
-                logger.info(f"  Point {i} -> {test_curve[i]:.3f}: ΔE={de:.2f}")
+                if verbose:
+                    logger.info(f"  Point {i} -> {test_curve[i]:.3f}: ΔE={de:.2f}")
 
     return best_exp, best_curve, best_de
 
 
-def main() -> int:
+def main():
     parser = argparse.ArgumentParser(
-        description="Reverse-engineer camera JPEG color science into Lightroom presets"
+        description="Optimize RawTherapee parameters to match camera JPEG"
     )
-    parser.add_argument("-i", "--input", required=True, type=Path,
-                        help="Input directory with DNG+JPEG pairs")
-    parser.add_argument("-o", "--output", type=Path, default=Path("output"),
-                        help="Output directory (default: output)")
-    parser.add_argument("-n", "--max-images", type=int, default=None,
-                        help="Max images to use (default: all)")
-    parser.add_argument("--dcp", type=Path,
-                        default=Path("data/profiles/Pentax Ricoh GR II Adobe Standard.dcp"),
-                        help="DCP profile path")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Verbose output")
+    parser.add_argument(
+        "--input", "-i",
+        type=Path,
+        default=Path("data/input"),
+        help="Input directory with DNG+JPEG pairs"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        type=Path,
+        default=Path("output"),
+        help="Output directory for results"
+    )
+    parser.add_argument(
+        "--max-images", "-n",
+        type=int,
+        default=None,
+        help="Maximum number of images to use"
+    )
+    parser.add_argument(
+        "--dcp",
+        type=Path,
+        default=Path("data/profiles/Pentax Ricoh GR II Adobe Standard.dcp"),
+        help="Path to DCP profile"
+    )
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Reduce output verbosity"
+    )
 
     args = parser.parse_args()
 
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+    if args.quiet:
+        logging.getLogger().setLevel(logging.WARNING)
 
-    # Validate input
-    if not args.input.exists():
-        logger.error(f"Input directory not found: {args.input}")
-        return 1
-
-    # Setup DCP
-    dcp_path = str(args.dcp) if args.dcp.exists() else None
-    if dcp_path:
+    # Check DCP profile
+    if not args.dcp.exists():
+        logger.warning(f"DCP profile not found: {args.dcp}")
+        dcp_path = None
+    else:
+        dcp_path = str(args.dcp)
         logger.info(f"Using DCP profile: {args.dcp.name}")
 
     # Initialize renderer
-    try:
-        renderer = RawTherapeeRenderer(dcp_path=dcp_path)
-    except RuntimeError as e:
-        logger.error(f"Failed to initialize RawTherapee: {e}")
-        logger.error("Make sure RawTherapee is installed: brew install --cask rawtherapee")
-        return 1
+    renderer = RawTherapeeRenderer(dcp_path=dcp_path)
 
-    # Load images
+    # Load image pairs
     pairs = load_image_pairs(args.input, args.max_images)
     if not pairs:
-        logger.error("No DNG+JPEG pairs found")
-        return 1
+        logger.error(f"No image pairs found in {args.input}")
+        sys.exit(1)
 
     logger.info(f"Loaded {len(pairs)} image pairs")
 
     # Run optimization
-    best_exp, best_curve, avg_de = optimize(renderer, pairs)
+    best_exp, best_curve, avg_de = optimize(renderer, pairs, verbose=not args.quiet)
 
-    # Final evaluation
+    # Final evaluation on all images
     logger.info("\n" + "="*60)
     logger.info("FINAL RESULTS")
     logger.info("="*60)
+    logger.info(f"\nOptimized parameters:")
+    logger.info(f"  Exposure: {best_exp:+.2f}")
+    logger.info(f"  Tone curve: {[f'{y:.3f}' for y in best_curve]}")
 
+    logger.info(f"\nPer-image results:")
     params = get_default_rt_params(curve_points=5)
     params["Exposure"] = best_exp
     params["ToneCurvePV2012"] = [[i / 4.0, best_curve[i]] for i in range(5)]
 
     results = {}
-    logger.info("\nPer-image results:")
     for pair in pairs:
         rgb = renderer.render(pair["dng"], params, target_size=(256, 256))
         if rgb.shape != pair["ref"].shape:
             rgb_pil = Image.fromarray((rgb * 255).astype(np.uint8))
-            rgb_pil = rgb_pil.resize((pair["ref"].shape[1], pair["ref"].shape[0]), Image.Resampling.LANCZOS)
+            rgb_pil = rgb_pil.resize(
+                (pair["ref"].shape[1], pair["ref"].shape[0]),
+                Image.Resampling.LANCZOS
+            )
             rgb = np.array(rgb_pil).astype(np.float32) / 255.0
 
-        de = float(np.mean(deltaE_ciede2000(pair["ref_lab"], rgb2lab(np.clip(rgb, 0, 1)))))
+        rgb_lab = rgb2lab(np.clip(rgb, 0, 1))
+        de = float(np.mean(deltaE_ciede2000(pair["ref_lab"], rgb_lab)))
         results[pair["name"]] = de
         status = "✓" if de < 5 else ("~" if de < 10 else "✗")
         logger.info(f"  {status} {pair['name']}: ΔE={de:.2f}")
@@ -208,20 +240,28 @@ def main() -> int:
     avg_de = sum(results.values()) / len(results)
     logger.info(f"\n  Average: {avg_de:.2f}")
 
-    # Save outputs
-    args.output.mkdir(parents=True, exist_ok=True)
+    # Save results
+    args.output.mkdir(exist_ok=True)
 
-    # Save JSON
+    # Save JSON parameters
     output_json = {
         "exposure": float(best_exp),
         "tone_curve": [[i / 4.0, float(best_curve[i])] for i in range(5)],
         "dcp_profile": str(args.dcp) if args.dcp.exists() else None,
+        "dcp_settings": {
+            "ToneCurve": True,
+            "ApplyLookTable": True,
+            "ApplyBaselineExposureOffset": True,
+            "ApplyHueSatMap": True,
+        },
         "average_delta_e": avg_de,
         "per_image": results,
     }
+
     json_path = args.output / "optimized_params.json"
     with open(json_path, "w") as f:
         json.dump(output_json, f, indent=2)
+    logger.info(f"\nSaved parameters: {json_path}")
 
     # Save RawTherapee .pp3 profile
     curve_str = ";".join([f"{i/4};{best_curve[i]}" for i in range(5)]) + ";"
@@ -253,34 +293,15 @@ CA=true
 [RAW Bayer]
 Method=amaze
 """
+
     pp3_path = args.output / "optimized_preset.pp3"
     pp3_path.write_text(pp3_content)
-
-    # Generate Lightroom XMP preset
-    try:
-        xmp_params = {
-            "ToneCurvePV2012": [[int(p[0]*255), int(p[1]*255)] for p in params["ToneCurvePV2012"]],
-        }
-        generator = XMPGenerator()
-        xmp_path = args.output / "color_emulator_preset.xmp"
-        generator.generate(xmp_params, xmp_path)
-        logger.info(f"\nSaved Lightroom XMP: {xmp_path}")
-    except Exception as e:
-        logger.warning(f"Could not generate XMP: {e}")
-
     logger.info(f"Saved RawTherapee profile: {pp3_path}")
-    logger.info(f"Saved parameters: {json_path}")
 
-    print()
-    print("="*60)
-    print("SUCCESS!")
-    print("="*60)
-    print(f"Average Delta E: {avg_de:.2f}")
-    print(f"Output saved to: {args.output}")
-    print("="*60)
-
-    return 0
+    logger.info("\n" + "="*60)
+    logger.info("Optimization complete!")
+    logger.info("="*60)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

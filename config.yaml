@@ -3,20 +3,20 @@
 # Optimization settings
 max_time_minutes: 60        # Total max runtime
 tolerance: 0.01             # Convergence tolerance
-population_size: 15         # Differential evolution population multiplier
+population_size: 3          # Differential evolution population multiplier (lower = faster)
 
 # Loss function settings
-target_delta_e: 3.0         # "Good enough" threshold (Delta E < 3 is generally imperceptible)
+target_delta_e: 15.0        # "Good enough" threshold (higher = faster convergence, lower = better quality)
 luminance_weight: true      # Weight midtones more heavily
 
 # Rendering settings
-render_size: 1024           # Max dimension for optimization renders
-final_render_size: 2048     # Max dimension for test renders
+render_size: 256            # Max dimension for optimization renders (lower = faster)
+final_render_size: 1024     # Max dimension for test renders
 use_camera_wb: true         # Lock to camera white balance (match in-camera JPEG)
 
 # Curve settings
-curve_points: 5             # Number of control points for main tone curve (min 3, max 10)
-rgb_curve_points: 3         # Number of control points for R/G/B channel curves (min 2, max 5)
+curve_points: 3             # Number of control points for main tone curve (min 3, max 10)
+rgb_curve_points: 0         # Number of control points for R/G/B channel curves (0 = disabled)
 
 # Output settings
 preset_name: "ColorEmulator"

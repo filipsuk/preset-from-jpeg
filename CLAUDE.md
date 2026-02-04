@@ -128,40 +128,46 @@ All dependencies have been installed and verified:
 
 Run `python3 test_setup.py` to verify installation.
 
-### macOS Setup (TODO for later)
+### macOS (Completed)
+All dependencies have been installed and verified:
+- Python 3.13.7
+- numpy 2.4.2
+- scipy 1.17.0
+- rawpy 0.26.0
+- Pillow 12.1.0
+- scikit-image 0.26.0
+- PyYAML 6.0.3
+- tqdm 4.67.3
+- pytest 9.0.2
 
-On macOS, follow these steps:
+To set up on a fresh macOS system:
 
 1. **Install Homebrew** (if not already installed):
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-2. **Install Python 3.11+**:
-   ```bash
-   brew install python@3.11
-   ```
-
-3. **Install system libraries for rawpy**:
+2. **Install system libraries for rawpy**:
    ```bash
    brew install libraw libjpeg libpng
    ```
 
-4. **Create and activate virtual environment**:
+3. **Create and activate virtual environment**:
    ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
 
-5. **Install dependencies**:
+4. **Install dependencies**:
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
+   pip install -e .
    ```
 
-6. **Verify installation**:
+5. **Verify installation**:
    ```bash
    python test_setup.py
    ```
 
-See `environment_setup.md` for detailed macOS setup instructions.
+See `environment_setup.md` for detailed setup instructions.

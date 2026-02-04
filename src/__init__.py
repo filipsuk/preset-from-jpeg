@@ -2,27 +2,22 @@
 Color Emulator - RAW-to-JPEG color science emulation package.
 
 Reverse-engineers camera JPEG color processing into Lightroom presets.
+Uses RawTherapee CLI for rendering with DCP profile support.
 """
 
-from .orchestrator import ColorEmulator
-from .renderer import RawRenderer
+from .rt_renderer import RawTherapeeRenderer, get_default_rt_params
 from .loss import PerceptualLoss
-from .optimizer import StagedOptimizer
 from .xmp_generator import XMPGenerator
-from .parameters import get_default_params, get_bounds
 from .image_utils import load_jpeg, save_image
 from .tone_curve import apply_tone_curve
 
 __version__ = "0.1.0"
 
 __all__ = [
-    "ColorEmulator",
-    "RawRenderer",
+    "RawTherapeeRenderer",
+    "get_default_rt_params",
     "PerceptualLoss",
-    "StagedOptimizer",
     "XMPGenerator",
-    "get_default_params",
-    "get_bounds",
     "load_jpeg",
     "save_image",
     "apply_tone_curve",

@@ -325,10 +325,15 @@ def get_stage_bounds(
     """
     Get bounds for parameters in a specific stage as a list.
 
+    For tone curves, we constrain bounds to ensure monotonically increasing curves:
+    - First point (shadows): 0.0 to 0.4
+    - Middle points: interpolated ranges
+    - Last point (highlights): 0.6 to 1.0
+
     Args:
         stage: Stage name
         curve_points: Number of points for main tone curve
-        rgb_curve_points: Number of points for RGB channel curves
+        rgb_curve_points: Number of points for RGB channel curves (0 to disable)
 
     Returns:
         List of (min, max) bounds for each parameter in the stage
@@ -336,13 +341,25 @@ def get_stage_bounds(
     bounds_list = []
 
     if stage == "tone_curve":
-        # Main curve bounds
-        for _ in range(curve_points):
-            bounds_list.append((0.0, 1.0))
-        # RGB curve bounds
-        for _ in range(3):  # R, G, B
-            for _ in range(rgb_curve_points):
-                bounds_list.append((0.0, 1.0))
+        # Main curve bounds - constrained to keep curve roughly monotonic
+        # Each point has a range that ensures it stays in order
+        for i in range(curve_points):
+            # Calculate position along curve (0 to 1)
+            pos = i / (curve_points - 1) if curve_points > 1 else 0.5
+            # Allow +/- 0.3 deviation from linear, but constrained to valid range
+            min_val = max(0.0, pos - 0.3)
+            max_val = min(1.0, pos + 0.3)
+            bounds_list.append((min_val, max_val))
+
+        # RGB curve bounds (only if enabled) - same constraints
+        if rgb_curve_points > 0:
+            for _ in range(3):  # R, G, B
+                for i in range(rgb_curve_points):
+                    pos = i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.5
+                    min_val = max(0.0, pos - 0.3)
+                    max_val = min(1.0, pos + 0.3)
+                    bounds_list.append((min_val, max_val))
+
     elif stage == "hsl":
         for name in STAGE_PARAMS["hsl"]:
             bounds_list.append(HSL_PARAMETERS[name]["bounds"])
@@ -362,7 +379,7 @@ def get_stage_defaults(
     Args:
         stage: Stage name
         curve_points: Number of points for main tone curve
-        rgb_curve_points: Number of points for RGB channel curves
+        rgb_curve_points: Number of points for RGB channel curves (0 to disable)
 
     Returns:
         List of default values for each parameter in the stage
@@ -373,10 +390,11 @@ def get_stage_defaults(
         # Main curve defaults (linear)
         for i in range(curve_points):
             defaults.append(i / (curve_points - 1) if curve_points > 1 else 0.0)
-        # RGB curve defaults (linear)
-        for _ in range(3):  # R, G, B
-            for i in range(rgb_curve_points):
-                defaults.append(i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.0)
+        # RGB curve defaults (linear, only if enabled)
+        if rgb_curve_points > 0:
+            for _ in range(3):  # R, G, B
+                for i in range(rgb_curve_points):
+                    defaults.append(i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.0)
     elif stage == "hsl":
         for name in STAGE_PARAMS["hsl"]:
             defaults.append(float(HSL_PARAMETERS[name]["default"]))
@@ -402,7 +420,7 @@ def update_params_from_stage(
         stage: Stage name
         stage_values: Optimized values for this stage
         curve_points: Number of points for main tone curve
-        rgb_curve_points: Number of points for RGB channel curves
+        rgb_curve_points: Number of points for RGB channel curves (0 to disable)
 
     Returns:
         Updated parameters dictionary
@@ -420,15 +438,16 @@ def update_params_from_stage(
             idx += 1
         params["ToneCurvePV2012"] = main_curve
 
-        # Update RGB curves
-        for curve_name in ["ToneCurvePV2012Red", "ToneCurvePV2012Green", "ToneCurvePV2012Blue"]:
-            curve = []
-            for i in range(rgb_curve_points):
-                input_val = i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.0
-                output_val = stage_values[idx]
-                curve.append((input_val, output_val))
-                idx += 1
-            params[curve_name] = curve
+        # Update RGB curves (only if enabled)
+        if rgb_curve_points > 0:
+            for curve_name in ["ToneCurvePV2012Red", "ToneCurvePV2012Green", "ToneCurvePV2012Blue"]:
+                curve = []
+                for i in range(rgb_curve_points):
+                    input_val = i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.0
+                    output_val = stage_values[idx]
+                    curve.append((input_val, output_val))
+                    idx += 1
+                params[curve_name] = curve
 
     elif stage == "hsl":
         for name in STAGE_PARAMS["hsl"]:
@@ -456,7 +475,7 @@ def get_stage_values_from_params(
         params: Parameters dictionary
         stage: Stage name
         curve_points: Number of points for main tone curve
-        rgb_curve_points: Number of points for RGB channel curves
+        rgb_curve_points: Number of points for RGB channel curves (0 to disable)
 
     Returns:
         List of values for the stage
@@ -464,15 +483,25 @@ def get_stage_values_from_params(
     values = []
 
     if stage == "tone_curve":
-        # Extract main curve outputs
-        if "ToneCurvePV2012" in params:
+        # Extract main curve outputs (use defaults if not present or wrong size)
+        if "ToneCurvePV2012" in params and len(params["ToneCurvePV2012"]) == curve_points:
             for _, output in params["ToneCurvePV2012"]:
                 values.append(output)
-        # Extract RGB curve outputs
-        for curve_name in ["ToneCurvePV2012Red", "ToneCurvePV2012Green", "ToneCurvePV2012Blue"]:
-            if curve_name in params:
-                for _, output in params[curve_name]:
-                    values.append(output)
+        else:
+            # Use linear defaults
+            for i in range(curve_points):
+                values.append(i / (curve_points - 1) if curve_points > 1 else 0.0)
+
+        # Extract RGB curve outputs (only if enabled)
+        if rgb_curve_points > 0:
+            for curve_name in ["ToneCurvePV2012Red", "ToneCurvePV2012Green", "ToneCurvePV2012Blue"]:
+                if curve_name in params and len(params[curve_name]) == rgb_curve_points:
+                    for _, output in params[curve_name]:
+                        values.append(output)
+                else:
+                    # Use linear defaults
+                    for i in range(rgb_curve_points):
+                        values.append(i / (rgb_curve_points - 1) if rgb_curve_points > 1 else 0.0)
 
     elif stage == "hsl":
         for name in STAGE_PARAMS["hsl"]:
