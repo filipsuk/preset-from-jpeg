@@ -133,7 +133,7 @@ CenterY=0
 CA=true
 
 [RAW Bayer]
-Method=amaze
+Method=rcd
 """
     return profile
 
@@ -204,12 +204,15 @@ class RawTherapeeRenderer:
             profile_content = create_pp3_profile(params, self.dcp_path)
             pp3_path.write_text(profile_content)
 
-            # Run RawTherapee CLI
+            # Run RawTherapee CLI with optimized flags:
+            # -q: Quick mode (skip loading profiles at startup)
+            # -js1: 4:2:0 chroma subsampling (faster, minimal quality impact)
             cmd = [
                 self.rt_cli,
                 "-o", str(out_path),
                 "-p", str(pp3_path),
-                "-j95",
+                "-q",
+                "-j95", "-js1",
                 "-Y",
                 "-c", str(dng_path)
             ]
@@ -264,11 +267,14 @@ class RawTherapeeRenderer:
             out_path = tmpdir / "output.jpg"
 
             # Run RawTherapee CLI with default processing
+            # -q: Quick mode (skip loading profiles at startup)
+            # -js1: 4:2:0 chroma subsampling (faster)
             cmd = [
                 self.rt_cli,
                 "-o", str(out_path),
                 "-d",  # Use default profile
-                "-j95",
+                "-q",
+                "-j95", "-js1",
                 "-Y",
                 "-c", str(dng_path)
             ]

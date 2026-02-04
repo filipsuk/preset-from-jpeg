@@ -294,6 +294,32 @@ Analysis showed emulated images had 20-27% darker corners relative to center vs 
 
 ---
 
+## RawTherapee CLI Speed Optimizations
+
+Tested various optimizations to reduce render time:
+
+| Configuration | Time | ΔE | Notes |
+|--------------|------|-----|-------|
+| Baseline (-j95, AMaZE) | 2.06s | 3.53 | Original |
+| + Quick mode (-q) | 1.87s | 3.53 | Skips profile loading |
+| + Fast export (-f) | 1.84s | 3.53 | Fast pipeline |
+| RCD demosaic | 1.67s | 3.54 | Instead of AMaZE |
+| Chroma 4:2:0 (-js1) | 1.70s | 3.47 | Faster I/O |
+| **RCD + quick + 4:2:0** | **1.55s** | **3.47** | **25% faster** |
+
+**Key findings:**
+- **RCD demosaic** is ~0.4s faster than AMaZE with negligible quality loss
+- **Quick mode (-q)** saves ~0.2s by skipping profile loading at startup
+- **Chroma subsampling (-js1)** saves ~0.3s and actually slightly improves ΔE
+- **JPEG quality** (50-95) doesn't affect speed, only file size
+
+**Recommended CLI flags for batch processing:**
+```bash
+rawtherapee-cli -q -j95 -js1 -Y -p profile.pp3 -c input.DNG
+```
+
+---
+
 ## Technical Notes
 
 ### Delta E Interpretation
