@@ -95,6 +95,7 @@ class ParamMapping:
     lr_min: float          # Lightroom minimum (e.g. -100)
     lr_max: float          # Lightroom maximum (e.g. +100)
     lr_default: float = 0  # Lightroom default / centre
+    lr_command: str = ""   # MIDI2LR command_string (e.g. "Exposure")
 
     @property
     def midi_max(self) -> int:

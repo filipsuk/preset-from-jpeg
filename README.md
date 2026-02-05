@@ -9,8 +9,7 @@ Designed as a building block for an automated optimisation loop.
 
 - macOS (Quartz Window Services is macOS-only)
 - Adobe Lightroom Classic, Develop module, Reference View enabled (Shift+R)
-- MIDI2LR installed and running, listening on a macOS IAC virtual MIDI port
-- IAC Driver enabled in Audio MIDI Setup
+- MIDI2LR installed and running
 - Screen Recording permission granted for your terminal / Python process
 
 ## Installation
@@ -21,17 +20,24 @@ pip install -e ".[dev]"
 
 ## Quick start
 
-### 1. Set up IAC Driver
+### 1. Configure MIDI2LR
 
-Open **Audio MIDI Setup** → **Window → Show MIDI Studio** → double-click
-**IAC Driver** → tick **Device is online**. Note the bus name (default:
-`IAC Driver Bus 1`).
+This package creates a **virtual MIDI port** (no IAC Driver needed). On launch,
+a port named `"LR Control"` appears automatically.
 
-### 2. Configure MIDI2LR
+1. Start your Python script (this creates the port).
+2. In MIDI2LR, click **"Rescan MIDI devices"** — `LR Control` will appear.
+3. Send an NRPN message from Python — a row appears in MIDI2LR.
+4. Assign each row to a Lightroom Develop parameter in the **"LR Command"** dropdown.
+5. Click **"Save"** in MIDI2LR to persist the profile.
 
-Launch MIDI2LR. In its mapping UI, assign each MIDI control (CC or NRPN
-number) to a Lightroom Develop parameter. The NRPN numbers you assign must
-match the `control` field in `DEFAULT_MAPPINGS` (or your own saved config).
+The NRPN numbers must match the `control` field in `DEFAULT_MAPPINGS`
+(starting at 128). MIDI2LR treats NRPN numbers >= 128 as 14-bit absolute
+(0-16383), which maps linearly to the full Lightroom parameter range.
+
+**Important**: In MIDI2LR **Settings**, uncheck **"Enable Pickup Mode"**.
+Pickup mode requires the MIDI value to cross the current slider position
+before responding, which prevents programmatic absolute control.
 
 ### 3. Calibrate crop regions
 
@@ -47,11 +53,7 @@ Calibration is saved to `~/.config/lr_optim_api/config.json`.
 ```python
 from lr_optim_api import LightroomBridge
 
-bridge = LightroomBridge(
-    midi_port_name="IAC Driver Bus 1",
-    midi_channel=0,
-    config_path="~/.config/lr_optim_api/config.json",
-)
+bridge = LightroomBridge()   # creates virtual port "LR Control"
 
 bridge.set("HSL_RED_HUE", 0.52)     # normalised 0..1
 bridge.set("HSL_RED_SAT", 0.12)
@@ -64,11 +66,10 @@ ref_img, cur_img = bridge.get_previews()
 ### Low-level usage
 
 ```python
-from lr_optim_api.midi2lr import open_midi_out, send_cc, send_nrpn
+from lr_optim_api.midi2lr import open_midi_out, send_nrpn
 
-port = open_midi_out("IAC Driver Bus 1")
-send_cc(port, channel=0, control=7, value_0_127=64)
-send_nrpn(port, channel=0, nrpn_number=300, value_0_16383=8192)
+port = open_midi_out("LR Control")   # virtual=True by default
+send_nrpn(port, channel=0, nrpn_number=138, value_0_16383=8192)  # Hue Red → 0
 ```
 
 ## Running tests

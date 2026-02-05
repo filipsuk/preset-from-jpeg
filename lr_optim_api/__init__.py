@@ -36,7 +36,7 @@ class LightroomBridge:
 
     Usage::
 
-        bridge = LightroomBridge(midi_port_name="IAC Driver Bus 1")
+        bridge = LightroomBridge()
         bridge.set("EXPOSURE", 0.52)
         bridge.wait_settle(150)
         ref, cur = bridge.get_previews()
@@ -44,9 +44,11 @@ class LightroomBridge:
 
     def __init__(
         self,
-        midi_port_name: str = "IAC Driver Bus 1",
+        midi_port_name: str = "LR Control",
         midi_channel: int = 0,
         config_path: str | Path = DEFAULT_CONFIG_PATH,
+        *,
+        virtual_port: bool = True,
     ) -> None:
         self._channel = midi_channel
         self._config_path = Path(config_path).expanduser()
@@ -55,7 +57,7 @@ class LightroomBridge:
         saved_mappings = load_mappings(self._config_path)
         self._mappings: dict[str, ParamMapping] = {**DEFAULT_MAPPINGS, **saved_mappings}
 
-        self._midi_out: MidiOut = open_midi_out(midi_port_name)
+        self._midi_out: MidiOut = open_midi_out(midi_port_name, virtual=virtual_port)
 
         if self._calibration is not None:
             self._window_id: int | None = self._calibration.window_id

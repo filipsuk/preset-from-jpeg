@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<settings>
+  <setting channel="1" controller="128" command_string="Temperature" />
+  <setting channel="1" controller="129" command_string="Tint" />
+  <setting channel="1" controller="130" command_string="Exposure" />
+  <setting channel="1" controller="131" command_string="Contrast" />
+  <setting channel="1" controller="132" command_string="Highlights" />
+  <setting channel="1" controller="133" command_string="Shadows" />
+  <setting channel="1" controller="134" command_string="Whites" />
+  <setting channel="1" controller="135" command_string="Blacks" />
+  <setting channel="1" controller="136" command_string="Vibrance" />
+  <setting channel="1" controller="137" command_string="Saturation" />
+  <setting channel="1" controller="138" command_string="HueAdjustmentRed" />
+  <setting channel="1" controller="139" command_string="HueAdjustmentOrange" />
+  <setting channel="1" controller="140" command_string="HueAdjustmentYellow" />
+  <setting channel="1" controller="141" command_string="HueAdjustmentGreen" />
+  <setting channel="1" controller="142" command_string="HueAdjustmentAqua" />
+  <setting channel="1" controller="143" command_string="HueAdjustmentBlue" />
+  <setting channel="1" controller="144" command_string="HueAdjustmentPurple" />
+  <setting channel="1" controller="145" command_string="HueAdjustmentMagenta" />
+  <setting channel="1" controller="146" command_string="SaturationAdjustmentRed" />
+  <setting channel="1" controller="147" command_string="SaturationAdjustmentOrange" />
+  <setting channel="1" controller="148" command_string="SaturationAdjustmentYellow" />
+  <setting channel="1" controller="149" command_string="SaturationAdjustmentGreen" />
+  <setting channel="1" controller="150" command_string="SaturationAdjustmentAqua" />
+  <setting channel="1" controller="151" command_string="SaturationAdjustmentBlue" />
+  <setting channel="1" controller="152" command_string="SaturationAdjustmentPurple" />
+  <setting channel="1" controller="153" command_string="SaturationAdjustmentMagenta" />
+  <setting channel="1" controller="154" command_string="LuminanceAdjustmentRed" />
+  <setting channel="1" controller="155" command_string="LuminanceAdjustmentOrange" />
+  <setting channel="1" controller="156" command_string="LuminanceAdjustmentYellow" />
+  <setting channel="1" controller="157" command_string="LuminanceAdjustmentGreen" />
+  <setting channel="1" controller="158" command_string="LuminanceAdjustmentAqua" />
+  <setting channel="1" controller="159" command_string="LuminanceAdjustmentBlue" />
+  <setting channel="1" controller="160" command_string="LuminanceAdjustmentPurple" />
+  <setting channel="1" controller="161" command_string="LuminanceAdjustmentMagenta" />
+</settings>
