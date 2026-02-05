@@ -8,6 +8,7 @@ Uses RawTherapee CLI with DCP profiles for Lightroom-compatible results.
 import argparse
 import json
 import logging
+import shutil
 import sys
 from pathlib import Path
 
@@ -291,12 +292,41 @@ DCPIlluminant=0
 CA=true
 
 [RAW Bayer]
-Method=amaze
+Method=rcd
 """
 
     pp3_path = args.output / "optimized_preset.pp3"
     pp3_path.write_text(pp3_content)
     logger.info(f"Saved RawTherapee profile: {pp3_path}")
+
+    # Render final preview images with reference side-by-side
+    logger.info("\n" + "-"*60)
+    logger.info("Rendering final previews...")
+    logger.info("-"*60)
+
+    preview_dir = args.output / "previews"
+    preview_dir.mkdir(exist_ok=True)
+
+    for pair in pairs:
+        name = pair["name"]
+        logger.info(f"  Rendering {name}...")
+        rgb = renderer.render(pair["dng"], params, target_size=(1024, 1024))
+        preview_img = Image.fromarray((rgb * 255).astype(np.uint8))
+
+        # Save emulated preview
+        preview_path = preview_dir / f"{name}_emulated.jpg"
+        preview_img.save(preview_path, quality=95)
+
+        # Copy reference JPEG next to it for easy comparison
+        dng_path = Path(pair["dng"])
+        for ext in [".jpg", ".jpeg", ".JPG", ".JPEG"]:
+            ref_src = dng_path.with_suffix(ext)
+            if ref_src.exists():
+                ref_dst = preview_dir / f"{name}_reference.jpg"
+                shutil.copy(ref_src, ref_dst)
+                break
+
+    logger.info(f"Saved {len(pairs)} preview pairs to: {preview_dir}")
 
     logger.info("\n" + "="*60)
     logger.info("Optimization complete!")

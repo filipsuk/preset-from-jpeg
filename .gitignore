@@ -43,3 +43,5 @@ output/
 # OS
 .DS_Store
 Thumbs.db
+
+data/input/*
